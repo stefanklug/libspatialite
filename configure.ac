@@ -144,6 +144,34 @@ fi
 AC_SUBST(OMIT_GEOS_FLAGS)
 
 #-----------------------------------------------------------------------
+#   --enable-boost-geometry
+#
+AC_ARG_ENABLE(boostgeometry, [AS_HELP_STRING(
+  [--enable-boost-geometry], [enables Boost geometry inclusion [default=no]])],
+  [], [boostgeometry=no])
+if test x"$enable_boostgeometry" != "xno"; then
+  OMIT_BOOSTGEOMETRY_FLAGS=
+  #AC_CHECK_HEADERS(geos_c.h,, [AC_MSG_ERROR([cannot find geos_c.h, bailing out])])
+  #AC_SEARCH_LIBS(GEOSTopologyPreserveSimplify,geos_c,,AC_MSG_ERROR(['libgeos_c' is required but it doesn't seem to be installed on this system.]),-lm -lgeos)
+  #-----------------------------------------------------------------------
+  #   --enable-geosadvanced
+  #
+  #AC_ARG_ENABLE(geosadvanced, [AS_HELP_STRING(
+  #        [--enable-geosadvanced], [enables GEOS advanced features [default=yes]])],
+  #        [], [geosadvanced=yes])
+  #if test x"$enable_geosadvanced" != "xno"; then
+  #        GEOSADVANCED_FLAGS=-DGEOS_ADVANCED
+  #        AC_SEARCH_LIBS(GEOSCoveredBy,geos_c,,AC_MSG_ERROR([obsolete 'libgeos_c' (< v.3.3.0). please retry specifying: --disable-geosadvanced.]),-lm -lgeos)
+  #else
+          GEOSADVANCED_FLAGS=
+  #fi
+          AC_SUBST(GEOSADVANCED_FLAGS)
+else
+  OMIT_BOOSTGEOMETRY_FLAGS=-DOMIT_BOOSTGEOMETRY
+fi
+AC_SUBST(OMIT_BOOSTGEOMETRY_FLAGS)
+
+#-----------------------------------------------------------------------
 #   --enable-iconv
 #
 AC_ARG_ENABLE(iconv, [AS_HELP_STRING(
