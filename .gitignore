@@ -1,0 +1,12 @@
+config.log
+config.status
+Doxyfile
+libtool
+spatialite.pc
+.deps
+.libs
+*.o
+*.gcno
+*.lo
+*.la
+Makefile
