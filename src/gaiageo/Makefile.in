@@ -37,7 +37,10 @@ host_triplet = @host@
 subdir = src/gaiageo
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -46,9 +49,10 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libgaiageo_la_LIBADD =
 am_libgaiageo_la_OBJECTS = gg_advanced.lo gg_endian.lo gg_geodesic.lo \
-	gg_geometries.lo gg_geoscvt.lo gg_relations.lo gg_shape.lo \
-	gg_transform.lo gg_wkb.lo gg_wkt.lo gg_vanuatu.lo gg_ewkt.lo \
-	gg_geoJSON.lo gg_kml.lo gg_gml.lo
+	gg_geometries.lo gg_geoscvt.lo gg_relations_boost.lo \
+	gg_relations.lo gg_shape.lo gg_transform.lo gg_wkb.lo \
+	gg_wkt.lo gg_vanuatu.lo gg_ewkt.lo gg_geoJSON.lo gg_kml.lo \
+	gg_gml.lo
 libgaiageo_la_OBJECTS = $(am_libgaiageo_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -199,7 +203,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CFLAGS = -D_LARGE_FILE=1 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE=1 \
         -DNDEBUG=1 \
-	@OMIT_GEOS_FLAGS@ @GEOSADVANCED_FLAGS@ @OMIT_PROJ_FLAGS@ \
+	@OMIT_GEOS_FLAGS@ @GEOSADVANCED_FLAGS@ @OMIT_BOOSTGEOMETRY_FLAGS@ @OMIT_PROJ_FLAGS@ \
 	@OMIT_ICONV_FLAGS@ @OMIT_MATHSQL_FLAGS@ \
 	@OMIT_EPSG_FLAGS@ @OMIT_GEOCALLBACKS_FLAGS@ @OMIT_FREEXL_FLAGS@
 
@@ -210,6 +214,7 @@ libgaiageo_la_SOURCES = gg_advanced.c \
 	gg_geodesic.c \
 	gg_geometries.c \
 	gg_geoscvt.c \
+	gg_relations_boost.c \
 	gg_relations.c \
 	gg_shape.c \
 	gg_transform.c \
@@ -284,6 +289,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_gml.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_kml.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_relations.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_relations_boost.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_shape.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_transform.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gg_vanuatu.Plo@am__quote@
