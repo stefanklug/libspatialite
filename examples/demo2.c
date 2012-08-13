@@ -22,8 +22,9 @@ redistribute it freely
 these headers are required in order to support
 SQLite/SpatiaLite
 */
-
+#ifndef OMIT_GEOS
 #include <geos_c.h>
+#endif
 
 #include <sqlite3.h>
 #include <spatialite/gaiageo.h>
