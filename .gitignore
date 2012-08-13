@@ -10,3 +10,4 @@ spatialite.pc
 *.lo
 *.la
 Makefile
+*.cache
