@@ -50,7 +50,8 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 
 #ifndef OMIT_BOOSTGEOMETRY		/* including GEOS */
-//#include <geos_c.h>
+#include "gg_geometry_boost.h"
+
 #endif
 
 #ifdef SPL_AMALGAMATION		/* spatialite-amalgamation */
@@ -64,9 +65,16 @@ the terms of any one of the MPL, the GPL or the LGPL.
 
 #ifndef OMIT_BOOSTGEOMETRY		/* including GEOS */
 
+namespace bg=boost::geometry;
+
 GAIAGEO_DECLARE int
 gaiaGeomCollEquals (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
 {
+
+	bg::equals();
+
+	template<typename Geometry1, typename Geometry2>
+	bool equals(Geometry1 const & geometry1, Geometry2 const & geometry2)
 /* checks if two Geometries are "spatially equal" */
     int ret;
     GEOSGeometry *g1;
@@ -80,6 +88,8 @@ gaiaGeomCollEquals (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
     GEOSGeom_destroy (g2);
     return ret;
 }
+
+#ifdef 0
 
 GAIAGEO_DECLARE int
 gaiaGeomCollIntersects (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
@@ -1511,5 +1521,7 @@ gaiaPolygonize (gaiaGeomCollPtr geom, int force_multi)
       }
     return result;
 }
+
+#endif /* 0 */
 
 #endif /* end including GEOS */
