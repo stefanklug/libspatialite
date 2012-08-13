@@ -147,7 +147,7 @@ AC_SUBST(OMIT_GEOS_FLAGS)
 #   --enable-boost-geometry
 #
 AC_ARG_ENABLE(boostgeometry, [AS_HELP_STRING(
-  [--enable-boost-geometry], [enables Boost geometry inclusion [default=no]])],
+  [--enable-boostgeometry], [enables Boost geometry inclusion [default=no]])],
   [], [boostgeometry=no])
 if test x"$enable_boostgeometry" != "xno"; then
   OMIT_BOOSTGEOMETRY_FLAGS=

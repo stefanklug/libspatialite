@@ -248,6 +248,11 @@ extern "C"
  */
     GAIAGEO_DECLARE gaiaGeomCollPtr gaiaFromGeos_XYZM (const void *geos);
 
+#endif
+
+
+#if !(defined(OMIT_GEOS) && defined(OMIT_BOOSTGEOMETRY)) /* check if there is any geometry support */
+
 /**
  Checks if a Geometry object represents an OGC Simple Geometry
 
