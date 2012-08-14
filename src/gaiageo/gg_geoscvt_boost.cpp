@@ -65,11 +65,14 @@ namespace bg = boost::geometry;
 
 static inline point toBoostPoint(const gaiaPointPtr pt) {
 	switch(pt->DimensionModel) {
+	case GAIA_XY_M:
+		return point(pt->X, pt->Y, 0.0, pt->M);
 	case GAIA_XY_Z:
+		return point(pt->X, pt->Y, pt->Z);
     case GAIA_XY_Z_M:
-    	return point(pt->X, pt->Y, pt->Z);
+    	return point(pt->X, pt->Y, pt->Z, pt->M);
     default:
-    	return point(pt->X, pt->Y, 0.0);
+    	return point(pt->X, pt->Y);
 	}
 }
 
@@ -93,15 +96,15 @@ static linestring toBoostLinestring(const gaiaLinestringPtr ln) {
 			  v += 3;
 			  break;
 		  case GAIA_XY_M:
-			  res.push_back(point(v[0], v[1], 0.0));
+			  res.push_back(point(v[0], v[1], 0.0, v[2]));
 			  v += 3;
 			  break;
 		  case GAIA_XY_Z_M:
-			  res.push_back(point(v[0], v[1], v[2]));
+			  res.push_back(point(v[0], v[1], v[2], v[3]));
 			  v += 4;
 			  break;
 		  default:
-			  res.push_back(point(v[0], v[1], 0.0));
+			  res.push_back(point(v[0], v[1]));
 			  v += 2;
 			  break;
 		  };
@@ -131,15 +134,15 @@ static linearring toBoostRing(const gaiaRingPtr ln) {
 			  v += 3;
 			  break;
 		  case GAIA_XY_M:
-			  res.push_back(point(v[0], v[1], 0.0));
+			  res.push_back(point(v[0], v[1], 0.0, v[2]));
 			  v += 3;
 			  break;
 		  case GAIA_XY_Z_M:
-			  res.push_back(point(v[0], v[1], v[2]));
+			  res.push_back(point(v[0], v[1], v[2], v[3]));
 			  v += 4;
 			  break;
 		  default:
-			  res.push_back(point(v[0], v[1], 0.0));
+			  res.push_back(point(v[0], v[1]));
 			  v += 2;
 			  break;
 		  };
@@ -150,6 +153,7 @@ static linearring toBoostRing(const gaiaRingPtr ln) {
 }
 
 static polygon toBoostPolygon(const gaiaPolygonPtr pg) {
+	int i;
 	polygon res;
 	linearring ring;
 
@@ -157,14 +161,14 @@ static polygon toBoostPolygon(const gaiaPolygonPtr pg) {
 	res.outer().swap(ring);
 
 	for(i=0; i<pg->NumInteriors; i++) {
-		res.inners().push_back(toBoostRing(pg->Interiors[i]));
+		res.inners().push_back(toBoostRing(pg->Interiors + i));
 	}
 
 	return res;
 }
 
 
-static multi_point toBoostMultiPoint(const gaiaPointPtr pt) {
+static multi_point toBoostMultiPoint(gaiaPointPtr pt) {
 	multi_point res;
 	while(pt) {
 		res.push_back(toBoostPoint(pt));
@@ -173,7 +177,7 @@ static multi_point toBoostMultiPoint(const gaiaPointPtr pt) {
 	return res;
 }
 
-static multi_linestring toBoostMultiLinestring(const gaiaLinestringPtr ln) {
+static multi_linestring toBoostMultiLinestring(gaiaLinestringPtr ln) {
 	multi_linestring res;
 	while(ln) {
 		res.push_back(toBoostLinestring(ln));
@@ -182,7 +186,7 @@ static multi_linestring toBoostMultiLinestring(const gaiaLinestringPtr ln) {
 	return res;
 }
 
-static multi_polygon toBoostMultiPolygon(const gaiaPolygonPtr pg) {
+static multi_polygon toBoostMultiPolygon(gaiaPolygonPtr pg) {
 	multi_polygon res;
 	while(pg) {
 		res.push_back(toBoostPolygon(pg));
@@ -191,7 +195,7 @@ static multi_polygon toBoostMultiPolygon(const gaiaPolygonPtr pg) {
 	return res;
 }
 
-static geometry
+geometry_collection
 toBoostGeometry (const gaiaGeomCollPtr gaia)
 {
 /* converting a GAIA Geometry into a GEOS Geometry */
@@ -213,563 +217,181 @@ toBoostGeometry (const gaiaGeomCollPtr gaia)
     gaiaPolygonPtr pg;
     gaiaRingPtr rng;
 
-    geometry res;
+    geometry_collection res;
 
-    if (!gaia)
+	pt = gaia->FirstPoint;
+	while(pt) {
+		res.points.push_back(toBoostPoint(pt));
+		pt = pt->Next;
+	}
+
+	ln = gaia->FirstLinestring;
+	while(ln) {
+		res.linestrings.push_back(toBoostLinestring(ln));
+		ln = ln->Next;
+	}
+
+	pg = gaia->FirstPolygon;
+	while(pg) {
+		res.polygons.push_back(toBoostPolygon(pg));
+		pg = pg->Next;
+	}
+
+	res.Srid = gaia->Srid;
+	res.DimensionModel = gaia->DimensionModel;
+	res.DeclaredType = gaia->DeclaredType;
+
 	return res;
-    type = gaiaGeometryAliasType(gaia);
-
-    switch (type) {
-      case GAIA_POINT:
-    	  res = toBoostPoint(gaia->FirstPoint);
-	  break;
-
-
-      case GAIA_LINESTRING:
-    	  res = toBoostLinestring(gaia->FirstLinestring);
-	  break;
-
-      case GAIA_POLYGON:
-    	  res = toBoostPolygon(gaia->FirstPolygon);
-	  break;
-
-      case GAIA_MULTIPOINT:
-    	  res = toBoostMultiPoint(gaia->FirstPoint);
-    	  break;
-      case GAIA_MULTILINESTRING:
-    	  res = toBoostMultiLinestring(gaia->FirstLinestring);
-    	  break;
-      case GAIA_MULTIPOLYGON:
-    	  res = toBoostMultiPolygon(gaia->FirstPolygon);
-    	  break;
-      case GAIA_GEOMETRYCOLLECTION:
-    	  geometry_collection c;
-		  pt = gaia->FirstPoint;
-		  while(pt) {
-			  c.points.push_back(toBoostPoint(pt));
-			  pt = pt->Next;
-		  }
-
-		  ln = gaia->FirstLinestring;
-		  while(ln) {
-			  c.linestrings.push_back(toBoostLinestring(ln));
-			  ln = ln->Next;
-		  }
-
-		  ln = gaia->FirstPolygon;
-		  while(pg) {
-			  c.polygons.push_back(toBoostPolygon(pg));
-			  pg = pg->Next;
-		  }
-
-		  res = c;
-		  break;
-      };
-    //if (geos)
-	//GEOSSetSRID (geos, gaia->Srid);
-    return res;
 }
 
-struct BoostToGaiaCollectionVisitor: public boost::static_visitor<gaiaGeomCollPtr>
+
+static gaiaPointPtr fromBoostPoint(const point& p) {
+	gaiaPointPtr res = gaiaAllocPointXYZM(p.x, p.y, p.z, p.m);
+	res->DimensionModel = p.DimensionModel;
+	return res;
+}
+
+static gaiaLinestringPtr fromBoostLinestring(const linestring& line) {
+	gaiaLinestringPtr res;
+	int i;
+	switch(line.DimensionModel) {
+		case GAIA_XY_M:
+			res = gaiaAllocLinestringXYM(line.size());
+			break;
+		case GAIA_XY_Z:
+			res = gaiaAllocLinestringXYZ(line.size());
+			break;
+		case GAIA_XY_Z_M:
+			res = gaiaAllocLinestringXYZM(line.size());
+			break;
+		default:
+			res = gaiaAllocLinestring(line.size());
+			break;
+	}
+
+	for(i=0; i<line.size(); i++) {
+		const point& p=line[i];
+		gaiaLineSetPoint (res, i, p.x, p.y, p.z, p.m);
+		if (p.x < res->MinX) res->MinX = p.x;
+		if (p.y < res->MinY) res->MinY = p.y;
+		if (p.x > res->MaxX) res->MaxX = p.x;
+		if (p.y > res->MaxY) res->MaxY = p.y;
+	}
+
+	return res;
+}
+
+static gaiaRingPtr fromBoostRing(const linearring& line, gaiaRingPtr dest=NULL) {
+	gaiaRingPtr res;
+	int i;
+
+	if(dest) {
+		res = dest;
+	} else {
+		switch(line.DimensionModel) {
+			case GAIA_XY_M:
+				res = gaiaAllocRingXYM(line.size());
+				break;
+			case GAIA_XY_Z:
+				res = gaiaAllocRingXYZ(line.size());
+				break;
+			case GAIA_XY_Z_M:
+				res = gaiaAllocRingXYZM(line.size());
+				break;
+			default:
+				res = gaiaAllocRing(line.size());
+				break;
+		}
+	}
+
+	for(i=0; i<line.size(); i++) {
+		const point& p=line[i];
+		gaiaRingSetPoint (res, i, p.x, p.y, p.z, p.m);
+		if (p.x < res->MinX) res->MinX = p.x;
+		if (p.y < res->MinY) res->MinY = p.y;
+		if (p.x > res->MaxX) res->MaxX = p.x;
+		if (p.y > res->MaxY) res->MaxY = p.y;
+	}
+
+	return res;
+}
+
+static gaiaPolygonPtr fromBoostPolygon(const polygon& p) {
+	gaiaPolygonPtr res;
+	int i;
+
+	switch(p.DimensionModel) {
+		case GAIA_XY_M:
+			res = gaiaAllocPolygonXYM(p.outer().size(), 0);
+			break;
+		case GAIA_XY_Z:
+			res = gaiaAllocPolygonXYZ(p.outer().size(), 0);
+			break;
+		case GAIA_XY_Z_M:
+			res = gaiaAllocPolygonXYZM(p.outer().size(), 0);
+			break;
+		default:
+			res = gaiaAllocPolygon(p.outer().size(), 0);
+			break;
+	}
+
+	fromBoostRing(p.outer(), res->Exterior);
+
+	for(i=0; i<p.inners().size(); i++) {
+		gaiaAddRingToPolyg(res, fromBoostRing(p.inners()[i]));
+	}
+
+	return res;
+}
+
+/* this function should be added to gaia core */
+GAIAGEO_DECLARE gaiaPointPtr
+gaiaInsertPointInGeomColl (gaiaGeomCollPtr c, gaiaPointPtr p) {
+	if (c->FirstPoint == NULL)
+		c->FirstPoint = p;
+	if (c->LastPoint != NULL)
+		c->LastPoint->Next = p;
+	    c->LastPoint = p;
+}
+
+/** this function should be added to gaia core and replace the old InsertPolygonColl */
+GAIAGEO_DECLARE gaiaPolygonPtr
+gaiaInsertPolygonInGeomColl2 (gaiaGeomCollPtr p, gaiaPolygonPtr pg)
 {
+    if (p->FirstPolygon == NULL)
+    	p->FirstPolygon = pg;
+    if (p->LastPolygon != NULL)
+    	p->LastPolygon->Next = pg;
+    p->LastPolygon = pg;
+    return pg;
+}
 
-	BoostToGaiaCollectionVisitor()
-
-    void operator()(geometry_collection& v) const
-    {
-        i *= 2;
-    }
-
-    void operator()(multi_polygon& v) const
-    {
-        str += str;
-    }
-
-    void operator()(polygon& v) const
-	{
-		str += str;
-	}
-
-    void operator()(polygon& v) const
-	{
-		str += str;
-	}
-
-private:
-
-
-};
-
-static gaiaGeomCollPtr
-fromBoostGeometry (const geometry& geom, const int dimension_model)
+gaiaGeomCollPtr
+fromBoostGeometry (const geometry_collection& geom)
 {
 /* converting a GEOS Geometry into a GAIA Geometry */
-    int type;
-    int itemType;
-    unsigned int dims;
-    int iv;
-    int ib;
-    int it;
-    int sub_it;
-    int nItems;
-    int nSubItems;
-    int holes;
-    unsigned int points;
-    double x;
-    double y;
-    double z;
-    const GEOSCoordSequence *cs;
-    const GEOSGeometry *geos_ring;
-    const GEOSGeometry *geos_item;
-    const GEOSGeometry *geos_sub_item;
-    gaiaGeomCollPtr gaia = NULL;
-    gaiaLinestringPtr ln;
-    gaiaPolygonPtr pg;
-    gaiaRingPtr rng;
-    if (!geos)
-	return NULL;
-    type = GEOSGeomTypeId (geos);
-    switch (type)
-      {
-      case GEOS_POINT:
-	  if (dimension_model == GAIA_XY_Z)
-	      gaia = gaiaAllocGeomCollXYZ ();
-	  else if (dimension_model == GAIA_XY_M)
-	      gaia = gaiaAllocGeomCollXYM ();
-	  else if (dimension_model == GAIA_XY_Z_M)
-	      gaia = gaiaAllocGeomCollXYZM ();
-	  else
-	      gaia = gaiaAllocGeomColl ();
-	  gaia->DeclaredType = GAIA_POINT;
-	  gaia->Srid = GEOSGetSRID (geos);
-	  cs = GEOSGeom_getCoordSeq (geos);
-	  GEOSCoordSeq_getDimensions (cs, &dims);
-	  if (dims == 3)
-	    {
-		GEOSCoordSeq_getX (cs, 0, &x);
-		GEOSCoordSeq_getY (cs, 0, &y);
-		GEOSCoordSeq_getZ (cs, 0, &z);
-	    }
-	  else
-	    {
-		GEOSCoordSeq_getX (cs, 0, &x);
-		GEOSCoordSeq_getY (cs, 0, &y);
-		z = 0.0;
-	    }
-	  if (dimension_model == GAIA_XY_Z)
-	      gaiaAddPointToGeomCollXYZ (gaia, x, y, z);
-	  else if (dimension_model == GAIA_XY_M)
-	      gaiaAddPointToGeomCollXYM (gaia, x, y, 0.0);
-	  else if (dimension_model == GAIA_XY_Z_M)
-	      gaiaAddPointToGeomCollXYZM (gaia, x, y, z, 0.0);
-	  else
-	      gaiaAddPointToGeomColl (gaia, x, y);
-	  break;
-      case GEOS_LINESTRING:
-	  if (dimension_model == GAIA_XY_Z)
-	      gaia = gaiaAllocGeomCollXYZ ();
-	  else if (dimension_model == GAIA_XY_M)
-	      gaia = gaiaAllocGeomCollXYM ();
-	  else if (dimension_model == GAIA_XY_Z_M)
-	      gaia = gaiaAllocGeomCollXYZM ();
-	  else
-	      gaia = gaiaAllocGeomColl ();
-	  gaia->DeclaredType = GAIA_LINESTRING;
-	  gaia->Srid = GEOSGetSRID (geos);
-	  cs = GEOSGeom_getCoordSeq (geos);
-	  GEOSCoordSeq_getDimensions (cs, &dims);
-	  GEOSCoordSeq_getSize (cs, &points);
-	  ln = gaiaAddLinestringToGeomColl (gaia, points);
-	  for (iv = 0; iv < (int) points; iv++)
-	    {
-		if (dims == 3)
-		  {
-		      GEOSCoordSeq_getX (cs, iv, &x);
-		      GEOSCoordSeq_getY (cs, iv, &y);
-		      GEOSCoordSeq_getZ (cs, iv, &z);
-		  }
-		else
-		  {
-		      GEOSCoordSeq_getX (cs, iv, &x);
-		      GEOSCoordSeq_getY (cs, iv, &y);
-		      z = 0.0;
-		  }
-		if (dimension_model == GAIA_XY_Z)
-		  {
-		      gaiaSetPointXYZ (ln->Coords, iv, x, y, z);
-		  }
-		else if (dimension_model == GAIA_XY_M)
-		  {
-		      gaiaSetPointXYM (ln->Coords, iv, x, y, 0.0);
-		  }
-		else if (dimension_model == GAIA_XY_Z_M)
-		  {
-		      gaiaSetPointXYZM (ln->Coords, iv, x, y, z, 0.0);
-		  }
-		else
-		  {
-		      gaiaSetPoint (ln->Coords, iv, x, y);
-		  }
-	    }
-	  break;
-      case GEOS_POLYGON:
-	  if (dimension_model == GAIA_XY_Z)
-	      gaia = gaiaAllocGeomCollXYZ ();
-	  else if (dimension_model == GAIA_XY_M)
-	      gaia = gaiaAllocGeomCollXYM ();
-	  else if (dimension_model == GAIA_XY_Z_M)
-	      gaia = gaiaAllocGeomCollXYZM ();
-	  else
-	      gaia = gaiaAllocGeomColl ();
-	  gaia->DeclaredType = GAIA_POLYGON;
-	  gaia->Srid = GEOSGetSRID (geos);
-	  /* exterior ring */
-	  holes = GEOSGetNumInteriorRings (geos);
-	  geos_ring = GEOSGetExteriorRing (geos);
-	  cs = GEOSGeom_getCoordSeq (geos_ring);
-	  GEOSCoordSeq_getDimensions (cs, &dims);
-	  GEOSCoordSeq_getSize (cs, &points);
-	  pg = gaiaAddPolygonToGeomColl (gaia, points, holes);
-	  rng = pg->Exterior;
-	  for (iv = 0; iv < (int) points; iv++)
-	    {
-		if (dims == 3)
-		  {
-		      GEOSCoordSeq_getX (cs, iv, &x);
-		      GEOSCoordSeq_getY (cs, iv, &y);
-		      GEOSCoordSeq_getZ (cs, iv, &z);
-		  }
-		else
-		  {
-		      GEOSCoordSeq_getX (cs, iv, &x);
-		      GEOSCoordSeq_getY (cs, iv, &y);
-		      z = 0.0;
-		  }
-		if (dimension_model == GAIA_XY_Z)
-		  {
-		      gaiaSetPointXYZ (rng->Coords, iv, x, y, z);
-		  }
-		else if (dimension_model == GAIA_XY_M)
-		  {
-		      gaiaSetPointXYM (rng->Coords, iv, x, y, 0.0);
-		  }
-		else if (dimension_model == GAIA_XY_Z_M)
-		  {
-		      gaiaSetPointXYZM (rng->Coords, iv, x, y, z, 0.0);
-		  }
-		else
-		  {
-		      gaiaSetPoint (rng->Coords, iv, x, y);
-		  }
-	    }
-	  for (ib = 0; ib < holes; ib++)
-	    {
-		/* interior rings */
-		geos_ring = GEOSGetInteriorRingN (geos, ib);
-		cs = GEOSGeom_getCoordSeq (geos_ring);
-		GEOSCoordSeq_getDimensions (cs, &dims);
-		GEOSCoordSeq_getSize (cs, &points);
-		rng = gaiaAddInteriorRing (pg, ib, points);
-		for (iv = 0; iv < (int) points; iv++)
-		  {
-		      if (dims == 3)
-			{
-			    GEOSCoordSeq_getX (cs, iv, &x);
-			    GEOSCoordSeq_getY (cs, iv, &y);
-			    GEOSCoordSeq_getZ (cs, iv, &z);
-			}
-		      else
-			{
-			    GEOSCoordSeq_getX (cs, iv, &x);
-			    GEOSCoordSeq_getY (cs, iv, &y);
-			    z = 0.0;
-			}
-		      if (dimension_model == GAIA_XY_Z)
-			{
-			    gaiaSetPointXYZ (rng->Coords, iv, x, y, z);
-			}
-		      else if (dimension_model == GAIA_XY_M)
-			{
-			    gaiaSetPointXYM (rng->Coords, iv, x, y, 0.0);
-			}
-		      else if (dimension_model == GAIA_XY_Z_M)
-			{
-			    gaiaSetPointXYZM (rng->Coords, iv, x, y, z, 0.0);
-			}
-		      else
-			{
-			    gaiaSetPoint (rng->Coords, iv, x, y);
-			}
-		  }
-	    }
-	  break;
-      case GEOS_MULTIPOINT:
-      case GEOS_MULTILINESTRING:
-      case GEOS_MULTIPOLYGON:
-      case GEOS_GEOMETRYCOLLECTION:
-	  if (dimension_model == GAIA_XY_Z)
-	      gaia = gaiaAllocGeomCollXYZ ();
-	  else if (dimension_model == GAIA_XY_M)
-	      gaia = gaiaAllocGeomCollXYM ();
-	  else if (dimension_model == GAIA_XY_Z_M)
-	      gaia = gaiaAllocGeomCollXYZM ();
-	  else
-	      gaia = gaiaAllocGeomColl ();
-	  if (type == GEOS_MULTIPOINT)
-	      gaia->DeclaredType = GAIA_MULTIPOINT;
-	  else if (type == GEOS_MULTILINESTRING)
-	      gaia->DeclaredType = GAIA_MULTILINESTRING;
-	  else if (type == GEOS_MULTIPOLYGON)
-	      gaia->DeclaredType = GAIA_MULTIPOLYGON;
-	  else
-	      gaia->DeclaredType = GAIA_GEOMETRYCOLLECTION;
-	  gaia->Srid = GEOSGetSRID (geos);
-	  nItems = GEOSGetNumGeometries (geos);
-	  for (it = 0; it < nItems; it++)
-	    {
-		/* looping on elementaty geometries */
-		geos_item = GEOSGetGeometryN (geos, it);
-		itemType = GEOSGeomTypeId (geos_item);
-		switch (itemType)
-		  {
-		  case GEOS_POINT:
-		      cs = GEOSGeom_getCoordSeq (geos_item);
-		      GEOSCoordSeq_getDimensions (cs, &dims);
-		      if (dims == 3)
-			{
-			    GEOSCoordSeq_getX (cs, 0, &x);
-			    GEOSCoordSeq_getY (cs, 0, &y);
-			    GEOSCoordSeq_getZ (cs, 0, &z);
-			}
-		      else
-			{
-			    GEOSCoordSeq_getX (cs, 0, &x);
-			    GEOSCoordSeq_getY (cs, 0, &y);
-			    z = 0.0;
-			}
-		      if (dimension_model == GAIA_XY_Z)
-			  gaiaAddPointToGeomCollXYZ (gaia, x, y, z);
-		      else if (dimension_model == GAIA_XY_M)
-			  gaiaAddPointToGeomCollXYM (gaia, x, y, 0.0);
-		      else if (dimension_model == GAIA_XY_Z_M)
-			  gaiaAddPointToGeomCollXYZM (gaia, x, y, z, 0.0);
-		      else
-			  gaiaAddPointToGeomColl (gaia, x, y);
-		      break;
-		  case GEOS_LINESTRING:
-		      cs = GEOSGeom_getCoordSeq (geos_item);
-		      GEOSCoordSeq_getDimensions (cs, &dims);
-		      GEOSCoordSeq_getSize (cs, &points);
-		      ln = gaiaAddLinestringToGeomColl (gaia, points);
-		      for (iv = 0; iv < (int) points; iv++)
-			{
-			    if (dims == 3)
-			      {
-				  GEOSCoordSeq_getX (cs, iv, &x);
-				  GEOSCoordSeq_getY (cs, iv, &y);
-				  GEOSCoordSeq_getZ (cs, iv, &z);
-			      }
-			    else
-			      {
-				  GEOSCoordSeq_getX (cs, iv, &x);
-				  GEOSCoordSeq_getY (cs, iv, &y);
-				  z = 0.0;
-			      }
-			    if (dimension_model == GAIA_XY_Z)
-			      {
-				  gaiaSetPointXYZ (ln->Coords, iv, x, y, z);
-			      }
-			    else if (dimension_model == GAIA_XY_M)
-			      {
-				  gaiaSetPointXYM (ln->Coords, iv, x, y, 0.0);
-			      }
-			    else if (dimension_model == GAIA_XY_Z_M)
-			      {
-				  gaiaSetPointXYZM (ln->Coords, iv, x, y, z,
-						    0.0);
-			      }
-			    else
-			      {
-				  gaiaSetPoint (ln->Coords, iv, x, y);
-			      }
-			}
-		      break;
-		  case GEOS_MULTILINESTRING:
-		      nSubItems = GEOSGetNumGeometries (geos_item);
-		      for (sub_it = 0; sub_it < nSubItems; sub_it++)
-			{
-			    /* looping on elementaty geometries */
-			    geos_sub_item =
-				GEOSGetGeometryN (geos_item, sub_it);
-			    cs = GEOSGeom_getCoordSeq (geos_sub_item);
-			    GEOSCoordSeq_getDimensions (cs, &dims);
-			    GEOSCoordSeq_getSize (cs, &points);
-			    ln = gaiaAddLinestringToGeomColl (gaia, points);
-			    for (iv = 0; iv < (int) points; iv++)
-			      {
-				  if (dims == 3)
-				    {
-					GEOSCoordSeq_getX (cs, iv, &x);
-					GEOSCoordSeq_getY (cs, iv, &y);
-					GEOSCoordSeq_getZ (cs, iv, &z);
-				    }
-				  else
-				    {
-					GEOSCoordSeq_getX (cs, iv, &x);
-					GEOSCoordSeq_getY (cs, iv, &y);
-					z = 0.0;
-				    }
-				  if (dimension_model == GAIA_XY_Z)
-				    {
-					gaiaSetPointXYZ (ln->Coords, iv, x, y,
-							 z);
-				    }
-				  else if (dimension_model == GAIA_XY_M)
-				    {
-					gaiaSetPointXYM (ln->Coords, iv, x, y,
-							 0.0);
-				    }
-				  else if (dimension_model == GAIA_XY_Z_M)
-				    {
-					gaiaSetPointXYZM (ln->Coords, iv, x, y,
-							  z, 0.0);
-				    }
-				  else
-				    {
-					gaiaSetPoint (ln->Coords, iv, x, y);
-				    }
-			      }
-			}
-		      break;
-		  case GEOS_POLYGON:
-		      /* exterior ring */
-		      holes = GEOSGetNumInteriorRings (geos_item);
-		      geos_ring = GEOSGetExteriorRing (geos_item);
-		      cs = GEOSGeom_getCoordSeq (geos_ring);
-		      GEOSCoordSeq_getDimensions (cs, &dims);
-		      GEOSCoordSeq_getSize (cs, &points);
-		      pg = gaiaAddPolygonToGeomColl (gaia, points, holes);
-		      rng = pg->Exterior;
-		      for (iv = 0; iv < (int) points; iv++)
-			{
-			    if (dims == 3)
-			      {
-				  GEOSCoordSeq_getX (cs, iv, &x);
-				  GEOSCoordSeq_getY (cs, iv, &y);
-				  GEOSCoordSeq_getZ (cs, iv, &z);
-			      }
-			    else
-			      {
-				  GEOSCoordSeq_getX (cs, iv, &x);
-				  GEOSCoordSeq_getY (cs, iv, &y);
-				  z = 0.0;
-			      }
-			    if (dimension_model == GAIA_XY_Z)
-			      {
-				  gaiaSetPointXYZ (rng->Coords, iv, x, y, z);
-			      }
-			    else if (dimension_model == GAIA_XY_M)
-			      {
-				  gaiaSetPointXYM (rng->Coords, iv, x, y, 0.0);
-			      }
-			    else if (dimension_model == GAIA_XY_Z_M)
-			      {
-				  gaiaSetPointXYZM (rng->Coords, iv, x, y, z,
-						    0.0);
-			      }
-			    else
-			      {
-				  gaiaSetPoint (rng->Coords, iv, x, y);
-			      }
-			}
-		      for (ib = 0; ib < holes; ib++)
-			{
-			    /* interior rings */
-			    geos_ring = GEOSGetInteriorRingN (geos_item, ib);
-			    cs = GEOSGeom_getCoordSeq (geos_ring);
-			    GEOSCoordSeq_getDimensions (cs, &dims);
-			    GEOSCoordSeq_getSize (cs, &points);
-			    rng = gaiaAddInteriorRing (pg, ib, points);
-			    for (iv = 0; iv < (int) points; iv++)
-			      {
-				  if (dims == 3)
-				    {
-					GEOSCoordSeq_getX (cs, iv, &x);
-					GEOSCoordSeq_getY (cs, iv, &y);
-					GEOSCoordSeq_getZ (cs, iv, &z);
-				    }
-				  else
-				    {
-					GEOSCoordSeq_getX (cs, iv, &x);
-					GEOSCoordSeq_getY (cs, iv, &y);
-					z = 0.0;
-				    }
-				  if (dimension_model == GAIA_XY_Z)
-				    {
-					gaiaSetPointXYZ (rng->Coords, iv, x, y,
-							 z);
-				    }
-				  else if (dimension_model == GAIA_XY_M)
-				    {
-					gaiaSetPointXYM (rng->Coords, iv, x, y,
-							 0.0);
-				    }
-				  else if (dimension_model == GAIA_XY_Z_M)
-				    {
-					gaiaSetPointXYZM (rng->Coords, iv, x, y,
-							  z, 0.0);
-				    }
-				  else
-				    {
-					gaiaSetPoint (rng->Coords, iv, x, y);
-				    }
-			      }
-			}
-		      break;
-		  };
-	    }
-	  break;
-      };
+   int i;
+   gaiaGeomCollPtr gaia;
+
+    gaia = gaiaAllocGeomColl();
+    gaia->DimensionModel = geom.DimensionModel;
+    gaia->DeclaredType = geom.DeclaredType;
+    gaia->Srid = geom.Srid;
+
+    for(i=0;i<geom.points.size();i++) {
+    	gaiaInsertPointInGeomColl(gaia, fromBoostPoint(geom.points[i]));
+    }
+
+    for(i=0;i<geom.linestrings.size();i++) {
+		gaiaInsertLinestringInGeomColl(gaia, fromBoostLinestring(geom.linestrings[i]));
+	}
+
+    for(i=0;i<geom.polygons.size();i++) {
+    	gaiaInsertPolygonInGeomColl2(gaia, fromBoostPolygon(geom.polygons[i]));
+    }
+
+
     return gaia;
 }
 
-GAIAGEO_DECLARE void *
-gaiaToGeos (const gaiaGeomCollPtr gaia)
-{
-/* converting a GAIA Geometry into a GEOS Geometry */
-    return toGeosGeometry (gaia);
-}
-
-GAIAGEO_DECLARE gaiaGeomCollPtr
-gaiaFromGeos_XY (const void *xgeos)
-{
-/* converting a GEOS Geometry into a GAIA Geometry [XY] */
-    const GEOSGeometry *geos = xgeos;
-    return fromGeosGeometry (geos, GAIA_XY);
-}
-
-GAIAGEO_DECLARE gaiaGeomCollPtr
-gaiaFromGeos_XYZ (const void *xgeos)
-{
-/* converting a GEOS Geometry into a GAIA Geometry [XYZ] */
-    const GEOSGeometry *geos = xgeos;
-    return fromGeosGeometry (geos, GAIA_XY_Z);
-}
-
-GAIAGEO_DECLARE gaiaGeomCollPtr
-gaiaFromGeos_XYM (const void *xgeos)
-{
-/* converting a GEOS Geometry into a GAIA Geometry [XYM] */
-    const GEOSGeometry *geos = xgeos;
-    return fromGeosGeometry (geos, GAIA_XY_M);
-}
-
-GAIAGEO_DECLARE gaiaGeomCollPtr
-gaiaFromGeos_XYZM (const void *xgeos)
-{
-/* converting a GEOS Geometry into a GAIA Geometry [XYZM] */
-    const GEOSGeometry *geos = xgeos;
-    return fromGeosGeometry (geos, GAIA_XY_Z_M);
-}
-
-#endif /* end including GEOS */
+#endif /* end including BOOST */

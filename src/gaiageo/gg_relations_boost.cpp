@@ -50,8 +50,8 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <float.h>
 
 #ifndef OMIT_BOOSTGEOMETRY		/* including GEOS */
-#include "gg_geometry_boost.h"
-
+#include "gg_geoscvt_boost.h"
+#include <boost/geometry/geometry.hpp>
 #endif
 
 #ifdef SPL_AMALGAMATION		/* spatialite-amalgamation */
@@ -59,6 +59,8 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #else
 #include <sqlite3ext.h>
 #endif
+
+
 
 #include <spatialite/gaiageo.h>
 
@@ -70,43 +72,68 @@ namespace bg=boost::geometry;
 GAIAGEO_DECLARE int
 gaiaGeomCollEquals (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
 {
-
-	bg::equals();
-
-	template<typename Geometry1, typename Geometry2>
-	bool equals(Geometry1 const & geometry1, Geometry2 const & geometry2)
-/* checks if two Geometries are "spatially equal" */
-    int ret;
-    GEOSGeometry *g1;
-    GEOSGeometry *g2;
-    if (!geom1 || !geom2)
+	if (!geom1 || !geom2)
 	return -1;
-    g1 = gaiaToGeos (geom1);
-    g2 = gaiaToGeos (geom2);
-    ret = GEOSEquals (g1, g2);
-    GEOSGeom_destroy (g1);
-    GEOSGeom_destroy (g2);
-    return ret;
+
+	int i;
+	geometry_collection g1 = toBoostGeometry(geom1);
+	geometry_collection g2 = toBoostGeometry(geom2);
+
+	//multilinestrings and multipoints are not supported by boost right now
+	if(g1.points.size() != g2.points.size()) return 0;
+	for(i=0; i< g1.points.size(); i++) {
+		if(!bg::equals(g1.points[i], g2.points[i])) return 0;
+	}
+
+	if(g1.linestrings.size() != g2.linestrings.size()) return 0;
+	for(i=0; i< g1.linestrings.size(); i++) {
+		if(!bg::equals(g1.linestrings[i], g2.linestrings[i])) return 0;
+	}
+
+	if(!bg::equals(g1.polygons, g2.polygons)) return 0;
+
+	return 1;
 }
 
-#ifdef 0
+
 
 GAIAGEO_DECLARE int
 gaiaGeomCollIntersects (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)
 {
 /* checks if two Geometries do "spatially intersects" */
-    int ret;
-    GEOSGeometry *g1;
-    GEOSGeometry *g2;
-    if (!geom1 || !geom2)
+	if (!geom1 || !geom2)
 	return -1;
-    g1 = gaiaToGeos (geom1);
-    g2 = gaiaToGeos (geom2);
-    ret = GEOSIntersects (g1, g2);
-    GEOSGeom_destroy (g1);
-    GEOSGeom_destroy (g2);
-    return ret;
+
+	int i,j;
+	geometry_collection g1 = toBoostGeometry(geom1);
+	geometry_collection g2 = toBoostGeometry(geom2);
+
+	for(i=0; i< g1.linestrings.size(); i++) {
+		for(j=0; j< g2.linestrings.size(); j++) {
+			if(!bg::intersects(g1.linestrings[i], g2.linestrings[j])) return 0;
+		}
+	}
+
+	for(i=0; i< g1.polygons.size(); i++) {
+		for(j=0; j< g2.polygons.size(); j++) {
+			if(!bg::intersects(g1.polygons[i], g2.polygons[j])) return 0;
+		}
+	}
+
+	for(i=0; i< g1.linestrings.size(); i++) {
+		for(j=0; j< g2.polygons.size(); j++) {
+			if(!bg::intersects(g1.linestrings[i], g2.polygons[j])) return 0;
+		}
+	}
+
+	for(i=0; i< g1.polygons.size(); i++) {
+		for(j=0; j< g2.linestrings.size(); j++) {
+			if(!bg::intersects(g1.polygons[i], g2.linestrings[j])) return 0;
+		}
+	}
 }
+
+#if 0
 
 GAIAGEO_DECLARE int
 gaiaGeomCollDisjoint (gaiaGeomCollPtr geom1, gaiaGeomCollPtr geom2)

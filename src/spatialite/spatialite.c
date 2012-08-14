@@ -16296,7 +16296,7 @@ register_spatialite_sql_functions (sqlite3 * db)
 
 #endif /* end including PROJ.4 */
 
-#ifndef OMIT_GEOS		/* including GEOS */
+#if !(defined(OMIT_GEOS) && defined(OMIT_BOOSTGEOMETRY))		/* including GEOS */
 
     initGEOS (geos_warning, geos_error);
     sqlite3_create_function (db, "Boundary", 1, SQLITE_ANY, 0, fnct_Boundary,

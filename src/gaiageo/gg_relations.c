@@ -59,6 +59,7 @@ the terms of any one of the MPL, the GPL or the LGPL.
 #include <sqlite3ext.h>
 #endif
 
+
 #include <spatialite/gaiageo.h>
 
 /* GLOBAL variables */
